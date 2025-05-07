@@ -1,7 +1,7 @@
 # RaspberryPi-Docker-Install
 Install Docker
 
-sudo apt update
+- sudo apt update
 sudo apt upgrade
 
 1단계 - 필수 패키지 설치
