@@ -47,3 +47,18 @@ The following packages have unmet dependencies:
  code : Depends: libxkbfile1 (>= 1:1.1.0) but 1:1.0.9-2 is to be installed
 E: Unable to correct problems, you have held broken packages.
 pi@raspberrypi:~ $ ^C
+
+
+# New version
+
+## 불필요한 backports 리스트 삭제
+- sudo rm /etc/apt/sources.list.d/*buster-backports*.list
+- sudo sed -i '/buster-backports/d' /etc/apt/sources.list
+- sudo rm -rf /var/lib/apt/lists/*
+- sudo apt update
+
+- wget http://ftp.debian.org/debian/pool/main/libx/libxkbfile/libxkbfile1_1.1.0-2~bpo10+1_armhf.deb
+- sudo dpkg -i libxkbfile1_1.1.0-2~bpo10+1_armhf.deb
+- 만약 의존성 경고가 뜨면, sudo apt --fix-broken install
+- sudo apt install code
+
