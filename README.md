@@ -62,3 +62,8 @@ pi@raspberrypi:~ $ ^C
 - 만약 의존성 경고가 뜨면, sudo apt --fix-broken install
 - sudo apt install code
 
+
+- wget https://update.code.visualstudio.com/latest/armhf/deb -O vscode-armhf.deb
+- sudo dpkg -i vscode-armhf.deb
+- sudo apt --fix-broken install
+
