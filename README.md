@@ -3,13 +3,15 @@
 
 - sudo apt install -y software-properties-common apt-transport-https wget
 
-- wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+- wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
 
-- sudo install -o root -g root -m 644 packages.microsoft.gpg /usr/share/keyrings/
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/vscode stable main" \
-  | sudo tee /etc/apt/sources.list.d/vscode.list
+- sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
 
-- sudo rm packages.microsoft.gpg
+- rm microsoft.gpg
+
+- echo "deb [arch=arm64] https://packages.microsoft.com/repos/code stable main" | \
+  sudo tee /etc/apt/sources.list.d/vscode.list
+
 
 - sudo apt update
 
