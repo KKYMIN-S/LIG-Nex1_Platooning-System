@@ -31,3 +31,19 @@
 
 ## VS Code 설치
 - sudo apt install code
+
+
+- pi@raspberrypi:~ $ sudo apt install code
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+The following packages have unmet dependencies:
+ code : Depends: libxkbfile1 (>= 1:1.1.0) but 1:1.0.9-2 is to be installed
+E: Unable to correct problems, you have held broken packages.
+pi@raspberrypi:~ $ ^C
