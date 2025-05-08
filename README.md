@@ -68,4 +68,6 @@ pi@raspberrypi:~ $ ^C
 - sudo apt --fix-broken install
 
 - deb http://archive.raspberrypi.org/debian/ buster main ui
-
+## 구버젼 다운
+- wget https://update.code.visualstudio.com/1.74.3/linux-deb-armhf/stable -O code-1.74.3.deb
+- sudo apt install ./code-1.74.3.deb
