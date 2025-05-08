@@ -67,3 +67,5 @@ pi@raspberrypi:~ $ ^C
 - sudo dpkg -i vscode-armhf.deb
 - sudo apt --fix-broken install
 
+- deb http://archive.raspberrypi.org/debian/ buster main ui
+
