@@ -12,8 +12,9 @@
 - sudo apt update
 
 ## Buster Backports 활성화
-- echo "deb http://raspbian.raspberrypi.org/raspbian buster-backports main contrib non-free" \
-| sudo tee /etc/apt/sources.list.d/buster-backports.list
+- echo "deb http://deb.debian.org/debian buster-backports main contrib non-free" \
+| sudo tee /etc/apt/sources.list.d/debian-buster-backports.list
+
 - sudo apt update
 
 ## libxkbfile1 등의 의존성 최신화
