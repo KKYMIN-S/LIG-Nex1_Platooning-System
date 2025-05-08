@@ -13,7 +13,7 @@
 
 ## Buster Backports 활성화
 - echo "deb http://raspbian.raspberrypi.org/raspbian buster-backports main contrib non-free" \
-  | sudo tee /etc/apt/sources.list.d/buster-backports.list
+| sudo tee /etc/apt/sources.list.d/buster-backports.list
 - sudo apt update
 
 ## libxkbfile1 등의 의존성 최신화
@@ -21,11 +21,11 @@
 
 ## Microsoft GPG 키와 저장소 설정
 - wget -qO- https://packages.microsoft.com/keys/microsoft.asc \
-  | gpg --dearmor > microsoft.gpg
+| gpg --dearmor > microsoft.gpg
 - sudo install -o root -g root -m644 microsoft.gpg /etc/apt/trusted.gpg.d/
 - rm microsoft.gpg
 - echo "deb [arch=armhf] https://packages.microsoft.com/repos/code stable main" \
-  | sudo tee /etc/apt/sources.list.d/vscode.list
+| sudo tee /etc/apt/sources.list.d/vscode.list
 - sudo apt update
 
 ## VS Code 설치
