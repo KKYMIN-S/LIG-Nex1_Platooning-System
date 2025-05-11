@@ -45,4 +45,7 @@ cd ~/ros2_ws
 source install/setup.bash
 sudo chmod 666 /dev/ttyUSB0
 해주고
-ros2 launch launch teleop_launch.py해주면 바로됌
+chmod +x ~/ros2_ws/run_teleop.sh
+~/ros2_ws/run_teleop.sh
+
+해주면 바로됌
