@@ -1,0 +1,3 @@
+chmod +x ~/ros2_ws/run_slam.sh
+실행
+~/ros2_ws/run_slam.sh
