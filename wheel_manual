@@ -1,0 +1,35 @@
+🔧 [1] USB 디바이스 권한 재설정
+매번 재부팅하면 /dev/ttyUSB0 권한이 초기화되므로 아래를 실행해야 함:
+
+sudo chmod 666 /dev/ttyUSB0
+자동으로 설정되게 하려면 /etc/udev/rules.d/99-usb.rules 파일 설정으로 권한 자동화도 가능 (필요 시 따로 알려줄게)
+
+📦 [2] ROS2 워크스페이스 환경 설정
+ROS2 환경을 다시 불러와야 함:
+cd ~/ros2_ws
+source install/setup.bash
+
+🚗 [3] 모터 제어 노드 실행
+ros2 run teleop_drive teleop_listener
+teleop_listener.py에서 /cmd_vel을 구독하고 pop 드라이버로 바퀴를 제어하는 노드
+
+🎮 [4] 다른 터미널에서 키보드 조작 실행
+새 터미널 열고 똑같이 ROS2 환경 설정 후:
+cd ~/ros2_ws
+source install/setup.bash
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+이제 w, a, s, d, x 키로 조작 가능 (속도 증가/감소는 q/z)
+
+요약
+bash 에서!!
+[1] sudo chmod 666 /dev/ttyUSB0
+[2] source ~/ros2_ws/install/setup.bash
+[3] ros2 run teleop_drive teleop_listener
+[4] ros2 run teleop_twist_keyboard teleop_twist_keyboard (다른 터미널)
+
+
+만약 teleop_twist_keyboard의 변경사항이 있으면
+📦 변경 사항 반영 후에는 반드시:
+cd ~/ros2_ws
+colcon build --packages-select teleop_drive --merge-install
+source install/setup.bash
