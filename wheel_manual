@@ -38,7 +38,9 @@ sudo chmod -R a+rx /media/soda/da379f50-c4e9-42d3-8f4a-5f6e4a6550ea/home/soda/ro
 cd ~/ros2_ws
 colcon build --packages-select teleop_drive --merge-install
 source install/setup.bash
-
+--------------------------------------------------------------------------------------------
+if 첫 부팅이면
+sudo chmod -R a+rx /media/soda/da379f50-c4e9-42d3-8f4a-5f6e4a6550ea/home/soda/rootOnNVMe
 앞으로는
 최초로
 cd ~/ros2_ws
