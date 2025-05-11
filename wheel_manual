@@ -22,6 +22,10 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 요약
 bash 에서!!
+if 첫 부팅이면
+sudo chmod -R a+rx /media/soda/da379f50-c4e9-42d3-8f4a-5f6e4a6550ea/home/soda/rootOnNVMe
+이걸로 권한 부여 해줘야함.
+
 [1] sudo chmod 666 /dev/ttyUSB0
 [2] source ~/ros2_ws/install/setup.bash
 [3] ros2 run teleop_drive teleop_listener
