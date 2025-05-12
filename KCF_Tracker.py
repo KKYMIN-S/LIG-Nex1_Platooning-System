@@ -3,8 +3,9 @@ import cv2
 import numpy as np
 import time
 
-LOWER_BLUE = np.array([103, 120, 90])
-UPPER_BLUE = np.array([125, 255, 255])
+LOWER_BLUE = np.array([95, 117, 62])
+UPPER_BLUE = np.array([115, 230, 149])
+
 
 class KCFTracker:
     def __init__(self):
