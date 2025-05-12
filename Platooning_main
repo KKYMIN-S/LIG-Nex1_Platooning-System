@@ -1,0 +1,81 @@
+# Platooning_main.py
+from YB_Pcb_Car import YB_Pcb_Car
+from KCF_Tracker import KCFTracker
+from DistanceSensor import DistanceController
+import cv2
+import time
+
+# ───────── 차량, 트래커, 거리센서 객체 초기화 ─────────
+car = YB_Pcb_Car()
+tracker = KCFTracker()
+distance_sensor = DistanceController()
+
+# ───────── 차량 기본 속도 설정 ─────────
+BASE_SPEED = 40
+LEFT_TRIM = 0
+RIGHT_TRIM = -5
+
+# ───────── 상태 변수 초기화 ─────────
+current_state = "moving"  # "moving" or "stopped"
+FAIL_TIMEOUT = 1.0  # 1초 이내 끊김은 무시
+
+try:
+    while True:
+        bbox, success, frame = tracker.update()
+
+        if success:
+            x, y, w, h, cx, cy = map(int, bbox)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.circle(frame, (cx, cy), 4, (0, 0, 255), -1)
+
+            distance = distance_sensor.get_distance()
+            if distance == -1:
+                print("거리 측정 실패")
+                car.Car_Stop()
+                current_state = "stopped"
+            else:
+                print(f"거리: {distance:.1f}cm")
+
+                if current_state == "moving":
+                    if distance < 10:
+                        print("가까움 → 차량 정지")
+                        car.Car_Stop()
+                        current_state = "stopped"
+                    else:
+                        car.Car_Run(BASE_SPEED + LEFT_TRIM, BASE_SPEED + RIGHT_TRIM)
+
+                elif current_state == "stopped":
+                    if distance > 10:
+                        print("안전 거리 확보 → 차량 전진 재개")
+                        car.Car_Run(BASE_SPEED + LEFT_TRIM, BASE_SPEED + RIGHT_TRIM)
+                        current_state = "moving"
+                    else:
+                        car.Car_Stop()
+
+        else:
+            elapsed = time.time() - tracker.get_last_success_time()
+            print(f"트래커 실패. 마지막 성공 후 {elapsed:.2f}초 경과")
+
+            if elapsed > FAIL_TIMEOUT:
+                print("1초 넘게 추적 실패 → 차량 정지")
+                car.Car_Stop()
+                current_state = "stopped"
+            else:
+                print("일시적 실패 → 추적 유지 중 (주행 상태 유지)")
+
+        cv2.imshow("Object Tracking", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            print("사용자 종료 (q)")
+            break
+
+        time.sleep(0.05)
+
+except KeyboardInterrupt:
+    print("종료 (Ctrl+C)")
+
+finally:
+    print("차량 정지 및 자원 해제")
+    car.Car_Stop()
+    distance_sensor.cleanup()
+    tracker.release()
+    cv2.destroyAllWindows()
