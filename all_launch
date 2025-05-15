@@ -14,3 +14,11 @@ SLAM
 chmod +x ~/ros2_ws/run_slam.sh
 실행
 ~/ros2_ws/run_slam.sh
+
+
+sudo chmod -R a+rx /media/soda/da379f50-c4e9-42d3-8f4a-5f6e4a6550ea/home/soda/rootOnNVMe
+cd ~/ros2_ws
+source install/setup.bash
+sudo chmod 666 /dev/ttyUSB0
+chmod +x ~/ros2_ws/run_teleop.sh
+chmod +x ~/ros2_ws/run_slam.sh
