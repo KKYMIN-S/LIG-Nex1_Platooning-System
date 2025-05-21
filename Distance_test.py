@@ -1,6 +1,7 @@
 import serial
 import time
 import threading
+import re
 
 # === 시리얼 포트 설정 ===
 SERIAL_PORT = '/dev/ttyACM0'
@@ -21,13 +22,17 @@ def read_distance():
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
         time.sleep(2)  # 아두이노 리셋 기다림
 
-        print("아두이노와 연결 완료. 거리값을 수신 중... (q를 눌러 종료)")
+        print("거리(cm) 수신 시작... (q를 누르면 종료)")
 
         while not exit_flag:
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8', errors='ignore').strip()
-                if line:
-                    print(f"[수신]: {line}")  # 모든 라인 출력
+
+                # "xx cm" 형식만 필터링
+                match = re.search(r'([0-9.]+)\s*cm', line)
+                if match:
+                    distance = float(match.group(1))
+                    print(f"{distance:.1f} cm")  # 소수점 1자리 출력
 
         print("종료 명령(q) 감지됨. 루프 탈출.")
 
@@ -38,8 +43,6 @@ def read_distance():
             ser.close()
 
 if __name__ == "__main__":
-    # 키보드 입력 감시 스레드 시작
     input_thread = threading.Thread(target=listen_keyboard, daemon=True)
     input_thread.start()
-
     read_distance()
