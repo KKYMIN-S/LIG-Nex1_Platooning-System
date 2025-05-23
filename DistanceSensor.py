@@ -34,3 +34,22 @@ class DistanceController:
 
     def cleanup(self):
         GPIO.cleanup()
+
+if __name__ == "__main__":
+    sensor = DistanceController(trig=16, echo=18)
+
+    print("초음파 거리 측정 시작 (Ctrl+C로 종료)\n")
+
+    try:
+        while True:
+            distance = sensor.get_distance()
+            if distance != -1:
+                print(f"현재 거리: {distance:.1f} cm")
+            else:
+                print("측정 실패 (timeout)")
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("\n측정 종료됨")
+    finally:
+        sensor.cleanup()
+
