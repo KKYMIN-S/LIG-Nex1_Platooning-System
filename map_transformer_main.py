@@ -1,106 +1,130 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-마우스로 지도(PGM)를 클릭해 Way-point를 지정하면
-팔로우카가 순차적으로 해당 지점까지 주행한다.
-※ 사용 라이브러리: cv2, numpy, time, math (파이썬 표준), map_transformer,
-   YB_Pcb_Car, DistanceController
+지도(PGM) 창을 클릭해 Way-point를 지정하면 팔로우카가 순차 주행한다.
+p 키로 속도·조향·안전·오도메트리·PWM 비율(LEFT_GAIN/RIGHT_GAIN) 등을
+실시간으로 조정할 수 있는 버전.
 """
 
 import cv2, math, time, numpy as np
 from collections import deque
-from pathlib import Path
-from map_transformer import MapTransformer          # 픽셀↔월드 변환
-from YB_Pcb_Car import YB_Pcb_Car                   # 모터 제어
-from DistanceSensor import DistanceController       # 초음파 센서
+from map_transformer import MapTransformer
+from YB_Pcb_Car import YB_Pcb_Car
+from DistanceSensor import DistanceController
 
-# ───── 환경 설정 ────────────────────────────────────────────────────────────
+# ─────────── 지도 경로
 MAP_DIR   = "/home/pi/Yahboom_project/Raspbot/raspbot/Slam_png"
 YAML_PATH = f"{MAP_DIR}/3F_lab.yaml"
+PGM_PATH  = f"{MAP_DIR}/3F_lab.pgm"
 
-BASE_SPEED       = 40      # 직진 기본 PWM
-STEER_GAIN       = 1.2     # 각도 오차 → 속도차 비례계수
-WAY_RADIUS       = 0.30    # Way-point 도달 반경 [m]
-LOOK_AHEAD       = 0.20    # 속도 감속 시작 거리 [m]
-DIST_STOP_CM     = 15      # 장애물 정지 임계 [cm]
-DIST_GO_CM       = 20      # 재출발 임계 [cm]
-LIN_PER_PWM      = 0.002   # [m/s] = PWM×계수  (차량 실측 후 조정)
-ANG_PER_DIFF     = 0.03    # [rad/s] = (R-L)×계수
+# ─────────── 주행 파라미터 (기본값)
+params = {
+    # ── 속도 & 조향 ───────────────────────────
+    "BASE_SPEED"   : 50,
+    "LEFT_TRIM"    : -5,
+    "RIGHT_TRIM"   : 0,
+    "STEER_GAIN"   : 0.5,
+    "LEFT_GAIN"    : 0.99,   # ← PWM 좌측 보정비
+    "RIGHT_GAIN"   : 1.00,   # ← PWM 우측 보정비
 
-# ───── 클래스: 간단 Dead-reckon 오도메트리 ────────────────────────────────────
+    # ── Way-point & 안전 거리 ─────────────────
+    "WAY_RADIUS"   : 0.30,
+    "LOOK_AHEAD"   : 0.20,
+    "DIST_STOP_CM" : 15,
+    "DIST_GO_CM"   : 20,
+
+    # ── 오도메트리 계수 ───────────────────────
+    "LIN_PER_PWM"  : 0.002,
+    "ANG_PER_DIFF" : 0.03,
+    "ODOM_SCALE"   : 1.7
+}
+
+# ─────────── Dead-reckon
 class DeadReckon:
     def __init__(self):
-        self.x = 0.0; self.y = 0.0; self.yaw = 0.0      # 월드[m], rad
+        self.x = self.y = self.yaw = 0.0
     def update(self, dt, l_pwm, r_pwm):
-        v  = (l_pwm + r_pwm) * 0.5 * LIN_PER_PWM
-        w  = (r_pwm - l_pwm) * ANG_PER_DIFF
+        v = (l_pwm + r_pwm) * 0.5 * params["LIN_PER_PWM"] * params["ODOM_SCALE"]
+        w = (r_pwm - l_pwm) * params["ANG_PER_DIFF"]
         self.x   += v * math.cos(self.yaw) * dt
         self.y   += v * math.sin(self.yaw) * dt
         self.yaw += w * dt
-        self.yaw  = (self.yaw + math.pi) % (2*math.pi) - math.pi  # -π~π
+        self.yaw  = (self.yaw + math.pi) % (2*math.pi) - math.pi
 
-# ───── 초기화 ───────────────────────────────────────────────────────────────
-tfm  = MapTransformer(YAML_PATH)                       # 지도 메타
+# ─────────── 초기화
+tfm  = MapTransformer(YAML_PATH)
 car  = YB_Pcb_Car()
 odom = DeadReckon()
 dist = DistanceController(trig=16, echo=18)
 
-map_img = cv2.imread(f"{MAP_DIR}/3F_lab.pgm", cv2.IMREAD_GRAYSCALE)
+map_img = cv2.imread(PGM_PATH, cv2.IMREAD_GRAYSCALE)
 map_bgr = cv2.cvtColor(map_img, cv2.COLOR_GRAY2BGR)
-H, W    = map_img.shape
+queue   = deque()
 
-queue   = deque()          # Way-point 목록
-l_cmd = r_cmd = 0          # 현재 PWM 명령 값
+l_cmd = r_cmd = 0
+running, prev_t = False, time.time()
 
-# ───── 마우스 콜백 ──────────────────────────────────────────────────────────
-def on_click(event, u, v, flags, param):
-    if event == cv2.EVENT_LBUTTONDOWN:
+# ─────────── 파라미터 편집
+def edit_params():
+    print("\n── 파라미터 수정 ──")
+    for i, k in enumerate(params, 1):
+        print(f"{i:2d}. {k:<12}= {params[k]}")
+    try:
+        sel = int(input("번호(0=취소): "))
+        if 1 <= sel <= len(params):
+            key = list(params)[sel-1]
+            val = float(input(f"{key} 새 값: "))
+            params[key] = int(val) if key.endswith("_CM") else val
+            print(f"[OK] {key} → {params[key]}")
+    except Exception as e:
+        print(f"[ERR] {e}")
+    print("──────────────────\n")
+
+# ─────────── 마우스 클릭 → Way-point
+def on_click(evt, u, v, *_):
+    if evt == cv2.EVENT_LBUTTONDOWN:
         x, y = tfm.px_to_world(u, v)
-        queue.append({"x":x, "y":y})
-        print(f"[CLICK] 픽셀({u},{v}) → 월드({x:.2f},{y:.2f})m  큐={len(queue)}")
+        queue.append({"x": x, "y": y})
+        print(f"[CLICK] ({u},{v}) → ({x:.2f},{y:.2f})  큐{len(queue)}")
 
 cv2.namedWindow("MAP")
 cv2.setMouseCallback("MAP", on_click)
-print("[INFO] 지도 클릭으로 Way-point 지정 시작 (ESC 종료)")
+print("[INFO] 지도 클릭 (ESC=종료, p=파라미터 수정)")
 
-# ───── 메인 루프 ────────────────────────────────────────────────────────────
-prev_t = time.time()
-running = False            # 장애물 상황에 따른 주행 플래그
-
+# ─────────── 메인 루프
 try:
     while True:
-        # ① 시간·오도메트리 갱신
-        now = time.time()
-        dt  = now - prev_t
-        prev_t = now
+        # ① 오도메트리
+        now, dt = time.time(), time.time() - prev_t
+        prev_t  = now
         odom.update(dt, l_cmd, r_cmd)
 
-        # ② 장애물 거리 확인
+        # ② 초음파
         d_cm = dist.get_distance()
         if d_cm != -1:
-            if d_cm < DIST_STOP_CM:
-                running = False
-            elif d_cm > DIST_GO_CM:
-                running = True   # 재출발 허용
+            running = d_cm > params["DIST_GO_CM"] or (running and d_cm > params["DIST_STOP_CM"])
 
-        # ③ Way-point 처리
+        # ③ Way-point 추종
         if queue and running:
-            wp  = queue[0]
-            dx  = wp["x"] - odom.x
-            dy  = wp["y"] - odom.y
-            dist_wp = math.hypot(dx, dy)
-            ang_wp  = math.atan2(dy, dx)
-            yaw_err = (ang_wp - odom.yaw + math.pi) % (2*math.pi) - math.pi
+            wp = queue[0]
+            dx, dy = wp["x"]-odom.x, wp["y"]-odom.y
+            d_wp   = math.hypot(dx, dy)
+            ang    = math.atan2(dy, dx)
+            yaw_e  = (ang - odom.yaw + math.pi) % (2*math.pi) - math.pi
 
-            # 속도 프로파일
-            base = BASE_SPEED * (0.4 if dist_wp < LOOK_AHEAD else 1.0)
-            steer = int(STEER_GAIN * math.degrees(yaw_err))
-            l_cmd = int(max(0, min(100, base - steer)))
-            r_cmd = int(max(0, min(100, base + steer)))
+            base = params["BASE_SPEED"] * (0.4 if d_wp < params["LOOK_AHEAD"] else 1.0)
+            base += params["LEFT_TRIM"] if base > 0 else params["RIGHT_TRIM"]
+
+            steer = params["STEER_GAIN"] * math.degrees(yaw_e)
+            l_raw = base - steer
+            r_raw = base + steer
+
+            l_cmd = int(max(0, min(100, l_raw * params["LEFT_GAIN"])))
+            r_cmd = int(max(0, min(100, r_raw * params["RIGHT_GAIN"])))
             car.Car_Run(l_cmd, r_cmd)
 
-            if dist_wp < WAY_RADIUS:
-                print(f"[ARRIVE] Way-point 도달 ({wp['x']:.2f},{wp['y']:.2f})")
+            if d_wp < params["WAY_RADIUS"]:
+                print(f"[ARRIVE] ({wp['x']:.2f},{wp['y']:.2f})")
                 queue.popleft()
         else:
             l_cmd = r_cmd = 0
@@ -108,24 +132,26 @@ try:
 
         # ④ 시각화
         vis = map_bgr.copy()
-        # 현재 위치
-        u,v = tfm.world_to_px(odom.x, odom.y)
-        cv2.circle(vis, (u,v), 3, (0,0,255), -1)
-        # 큐 표시
+        u, v = tfm.world_to_px(odom.x, odom.y)
+        cv2.circle(vis, (u, v), 3, (0, 0, 255), -1)
         for w in queue:
-            uu,vv = tfm.world_to_px(w["x"], w["y"])
-            cv2.circle(vis, (uu,vv), 4, (255,0,0), 2)
-        # 거리 텍스트
-        txt = f"D:{d_cm:.0f}cm" if d_cm!=-1 else "D:--"
-        cv2.putText(vis, txt, (10,25), cv2.FONT_HERSHEY_SIMPLEX, 0.7,(0,255,0),2)
+            uu, vv = tfm.world_to_px(w["x"], w["y"])
+            cv2.circle(vis, (uu, vv), 4, (255, 0, 0), 2)
+        txt = f"D:{d_cm:.0f}cm" if d_cm != -1 else "D:--"
+        cv2.putText(vis, txt, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.imshow("MAP", vis)
 
-        if cv2.waitKey(1) == 27:     # ESC 종료
+        key = cv2.waitKey(1) & 0xFF
+        if key == 27:
             break
+        elif key == ord('p'):
+            car.Car_Stop()
+            edit_params()
+
         time.sleep(0.03)
 
 finally:
-    print("[INFO] 종료: 차량·자원 정리")
+    print("[INFO] 종료: 차량 정지 및 자원 해제")
     car.Car_Stop()
     dist.cleanup()
     cv2.destroyAllWindows()
