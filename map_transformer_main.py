@@ -8,12 +8,12 @@ p 키로 속도·조향·안전·오도메트리·PWM 비율(LEFT_GAIN/RIGHT_GAI
 
 import cv2, math, time, numpy as np
 from collections import deque
-from map_transformer import MapTransformer
+from Map_Transformer import MapTransformer
 from YB_Pcb_Car import YB_Pcb_Car
 from DistanceSensor import DistanceController
 
 # ─────────── 지도 경로
-MAP_DIR   = "/home/pi/Yahboom_project/Raspbot/raspbot/Slam_png"
+MAP_DIR   = "/home/pi/Yahboom_project/Raspbot/raspbot/Slam_Data"
 YAML_PATH = f"{MAP_DIR}/3F_lab.yaml"
 PGM_PATH  = f"{MAP_DIR}/3F_lab.pgm"
 
