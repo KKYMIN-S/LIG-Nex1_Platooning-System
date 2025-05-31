@@ -4,7 +4,7 @@ import os
 app = Flask(__name__)
 
 # 공유할 맵 파일이 있는 디렉토리
-MAP_DIR = '/home/pi/ros2_ws/src/maps'  # 실제 경로로 수정
+MAP_DIR = '/home/pi/Yahboom_project/Raspbot/raspbot/Map_Data'  # 실제 경로로 수정
 
 @app.route('/map/<filename>')
 def get_map_file(filename):
