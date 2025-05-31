@@ -2,9 +2,10 @@ import requests
 import os
 
 # 리드카 IP와 맵 경로
-LEADCAR_IP = '192.168.0.100'  # 실제 리드카 IP로 변경
-MAP_FILES = ['my_map.pgm', 'my_map.yaml']
-SAVE_DIR = './downloaded_maps'
+LEADCAR_IP = '192.168.0.45'  # 실제 리드카 IP로 변경
+MAP_FILES = ['3F_lab.pgm', '3F_lab.yaml']
+SAVE_DIR = '/home/pi/Yahboom_project/Raspbot/raspbot/Downloaded_Maps'
+
 
 # 디렉토리 생성
 os.makedirs(SAVE_DIR, exist_ok=True)
