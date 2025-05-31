@@ -4,7 +4,7 @@ import time
 class CameraTracker:
     def __init__(self, car, tracker=None,
                  pan_channel=1, tilt_channel=2,
-                 center_yaw=110, center_pitch=70,
+                 center_yaw=110, center_pitch=80,
                  dead_zone=30,
                  yaw_limit=(0, 180), pitch_limit=(0, 180)):
         self.car = car
@@ -73,3 +73,15 @@ class CameraTracker:
         self.servo_pitch = self.center_pitch
         self.car.Ctrl_Servo(self.pan_channel, self.servo_yaw)
         self.car.Ctrl_Servo(self.tilt_channel, self.servo_pitch)
+
+    def scan_servo_yaw(self, scan_direction, scan_step, scan_limit):
+
+        self.servo_yaw += scan_direction * scan_step
+        if abs(self.servo_yaw - self.center_yaw) >= scan_limit:
+            scan_direction *= -1  # 방향 반전
+
+        # yaw_min, yaw_max 범위 체크
+        self.servo_yaw = max(self.yaw_min, min(self.yaw_max, self.servo_yaw))
+        self.car.Ctrl_Servo(self.pan_channel, int(self.servo_yaw))
+        
+        return scan_direction
