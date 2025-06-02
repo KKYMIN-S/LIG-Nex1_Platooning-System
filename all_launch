@@ -6,6 +6,8 @@ chmod +x ~/ros2_ws/run_teleop.sh
 chmod +x ~/ros2_ws/run_slam.sh
 chmod +x ~/ros2_ws/run_nav.sh
 chmod +x run_tf.sh
+chmod +x ~/ros2_ws/mqtt/send_start_sign.py
+chmod +x ~/ros2_ws/mqtt/send_map.py
 
 ------------------------------------------------------------
 드라이브 새로 설치하고 난 후의 메뉴얼
