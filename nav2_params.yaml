@@ -78,25 +78,26 @@ controller_server:
     min_vel_y: 0.0
     max_vel_x: 0.2
     max_vel_y: 0.0
-    max_vel_theta: 1.0
+    max_vel_theta: 0.5
     min_speed_xy: 0.0
     max_speed_xy: 0.26
     min_speed_theta: 0.0
+    min_turning_radius: 0.5
     min_x_velocity_threshold: 0.001
     min_y_velocity_threshold: 0.5
-    min_theta_velocity_threshold: 0.001
-    acc_lim_x: 2.5
+    min_theta_velocity_threshold: 0.0
+    acc_lim_x: 0.08
     acc_lim_y: 0.0
-    acc_lim_theta: 3.2
+    acc_lim_theta: 1.5
     decel_lim_x: -2.5
     decel_lim_y: 0.0
-    decel_lim_theta: -3.2
+    decel_lim_theta: -1.5
     vx_samples: 20
     vy_samples: 5
-    vtheta_samples: 20
-    sim_time: 1.7
+    vtheta_samples: 10
+    sim_time: 2.0
     linear_granularity: 0.05
-    xy_goal_tolerance: 0.25
+    xy_goal_tolerance: 0.5
     transform_tolerance: 0.2
     critics:
       - RotateToGoal
@@ -108,7 +109,7 @@ controller_server:
       - GoalDist
     RotateToGoal.scale: 32.0
     Oscillation.scale: 1.0
-    BaseObstacle.scale: 0.02
+    BaseObstacle.scale: 5.0
     GoalAlign.scale: 0.0
     PathAlign.scale: 0.0
     PathDist.scale: 32.0
@@ -133,7 +134,8 @@ local_costmap:
       height: 3
       resolution: 0.05
       footprint: "[[-0.15, -0.10], [0.15, -0.10], [0.15, 0.10], [-0.15, 0.10]]"
-      inflation_layer.cost_scaling_factor: 2.0
+      inflation_layer.cost_scaling_factor: 0.5
+      inflation_layer.inflation_radius: 0.2
       obstacle_layer.enabled: true
       obstacle_layer.observation_sources: scan
       obstacle_layer.scan.topic: /scan
