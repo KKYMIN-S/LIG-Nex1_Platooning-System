@@ -75,13 +75,18 @@ class CameraTracker:
         self.car.Ctrl_Servo(self.tilt_channel, self.servo_pitch)
 
     def scan_servo_yaw(self, scan_direction, scan_step, scan_limit):
-
         self.servo_yaw += scan_direction * scan_step
+
         if abs(self.servo_yaw - self.center_yaw) >= scan_limit:
             scan_direction *= -1  # 방향 반전
 
         # yaw_min, yaw_max 범위 체크
         self.servo_yaw = max(self.yaw_min, min(self.yaw_max, self.servo_yaw))
+
+        # yaw만 업데이트
         self.car.Ctrl_Servo(self.pan_channel, int(self.servo_yaw))
-        
+
+        # pitch를 강제로 고정 (안전장치)
+        self.car.Ctrl_Servo(self.tilt_channel, int(self.servo_pitch))
+
         return scan_direction
