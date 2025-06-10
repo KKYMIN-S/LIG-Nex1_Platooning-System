@@ -27,16 +27,6 @@ def generate_launch_description():
             default_value='false',
             description='Use simulation clock if true'),
 
-        # 🚀 Static TF publisher (map -> odom)
-        # Node(
-        #     package='tf2_ros',
-        #     node_executable='static_transform_publisher',
-        #     name='static_map_to_odom_tf',
-        #     arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
-        #     parameters=[{'use_sim_time': False}],
-        #     output='screen'
-        # ),
-
         Node(
             package='teleop_drive',
             node_executable='odom_and_scan_publisher',
@@ -52,25 +42,6 @@ def generate_launch_description():
             output='screen',
             parameters=[{'use_sim_time': False}]
         ),
-
-        # Node(
-        #     package='tf2_ros',
-        #     node_executable='static_transform_publisher',
-        #     name='static_base_footprint_to_base_link_tf',
-        #     arguments=['0', '0', '0.1', '0', '0', '0', 'base_footprint', 'base_link'],
-        #     parameters=[{'use_sim_time': False}],
-        #     output='screen'
-        # ),
-        
-
-        # Node(
-        #     package='tf2_ros',
-        #     node_executable='static_transform_publisher',
-        #     name='static_base_link_to_laser_tf',
-        #     arguments=['0.1', '0.0', '0.1', '0', '0', '0', 'base_link', 'laser'],
-        #     parameters=[{'use_sim_time': False}],
-        #     output='screen'
-        # ),
 
         # ðŸŸ  Nav2 bringup launch í¬í•¨
         IncludeLaunchDescription(

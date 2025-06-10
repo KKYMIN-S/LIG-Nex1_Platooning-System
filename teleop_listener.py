@@ -26,8 +26,7 @@ class TeleopDrive(Node):
         
         #steering_gain = 0.5  # 너무 민감한 회전 방지
         #steering_value = -angular * steering_gain
-        #self.car.steering = max(-1.0, min(1.0, steering_value))
-
+    
         # 조향값 -1 ~ 1
         self.car.steering = max(-1.0, min(1.0, -angular))  # 반대 방향 보정
 
