@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+
+import paho.mqtt.client as mqtt
+
+def main():
+    broker_address = "192.168.0.51"  # MQTT 브로커 주소를 여기에 입력
+    broker_port = 1883                # 기본 포트 (필요에 따라 변경)
+    topic = "ros2/start_sign"       # 원하는 토픽명으로 변경
+
+    message = "Start_Nav!"
+
+    client = mqtt.Client("ros2_start_sign")
+    try:
+        client.connect(broker_address, broker_port, 60)
+        client.publish(topic, message)
+        print(f"[MQTT] Published '{message}' to topic '{topic}' on broker '{broker_address}:{broker_port}'")
+        client.disconnect()
+    except Exception as e:
+        print(f"[MQTT] Error: {e}")
+
+if __name__ == "__main__":
+    main()
