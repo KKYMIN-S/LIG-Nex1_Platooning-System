@@ -1,36 +1,93 @@
-name: Import all repos from org into monorepo
+name: Import or update 15 org repos into monorepo
 
 on:
-  workflow_dispatch: {}   # Actions 탭에서 수동 실행 가능
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행
+
+permissions:
+  contents: write
 
 jobs:
   import:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout monorepo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Git
+      - name: Install git-subtree
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
+          sudo apt-get update
+          sudo apt-get install -y git-subtree
 
-      # 예시: 조직의 Leader-Car 저장소 불러오기
-      - name: Import Leader-Car
+      - name: Configure git identity
         run: |
-          git remote add leader https://github.com/Platooning-ANTREES-with-LIG-Nex1/Leader-Car.git
-          git fetch leader
-          git subtree add --prefix=src/Leader-Car leader main
+          git config user.name  "monorepo-bot"
+          git config user.email "monorepo-bot@users.noreply.github.com"
 
-      # 여기에 다른 14개 저장소도 같은 방식으로 추가
-      # - name: Import AnotherRepo
-      #   run: |
-      #     git remote add another https://github.com/Platooning-ANTREES-with-LIG-Nex1/AnotherRepo.git
-      #     git fetch another
-      #     git subtree add --prefix=src/AnotherRepo another main
-
-      - name: Push changes
+      - name: Import or update all 15 repos as subtrees
+        env:
+          TOKEN: ${{ secrets.PERSONAL_GH_PAT }}
+          ORG: Platooning-ANTREES-with-LIG-Nex1
+          PREFIX_ROOT: Platooning_System
+          DEFAULT_BRANCH: main
+        shell: bash
         run: |
-          git push origin main
+          set -euo pipefail
+
+          # ====== 레포 이름 목록 ======
+          REPOS=(
+            "Leader-CAR"
+            "Platooning_main"
+            "HSV_Tracker"
+            "DistanceSensor"
+            "Camera_Tracker"
+            "MQTT"
+            "ArUcoMarker_Detection"
+            "Hough_Detector"
+            "KCF_Tracker"
+            "YB_Pcb_Car"
+            "Color_Control"
+            "Follow-Color-Car"
+            "Control-Mode"
+            "raspberry_VScode-install"
+            "RaspberryPi-Docker-Install"
+          )
+
+          # 기본 브랜치가 main이 아닌 레포가 있으면 여기에서 지정 (예: BRANCH["MQTT"]="master")
+          declare -A BRANCH
+          # BRANCH["SomeRepo"]="develop"
+
+          import_or_update () {
+            local NAME="$1"
+            local BR="${BRANCH[$NAME]:-$DEFAULT_BRANCH}"
+            local PREFIX="${PREFIX_ROOT}/${NAME}"
+            local REM="import-${NAME}"
+
+            # 토큰 포함 HTTPS URL (비공개 레포도 OK)
+            local URL="https://x-access-token:${TOKEN}@github.com/${ORG}/${NAME}.git"
+
+            echo ""
+            echo "=== ${NAME} (${BR}) -> ${PREFIX}"
+
+            git remote remove "${REM}" 2>/dev/null || true
+            git remote add    "${REM}" "${URL}"
+            git fetch "${REM}" --tags
+
+            if [ -d "${PREFIX}" ]; then
+              echo " -> exists: pulling latest"
+              git subtree pull --prefix="${PREFIX}" "${REM}" "${BR}" -m "Update ${NAME}"
+            else
+              echo " -> not found: importing"
+              git subtree add  --prefix="${PREFIX}" "${REM}" "${BR}" -m "Import ${NAME} into ${PREFIX}"
+            fi
+          }
+
+          for repo in "${REPOS[@]}"; do
+            import_or_update "$repo"
+          done
+
+          echo ""
+          echo "==> push"
+          git push origin HEAD:main
