@@ -1,7 +1,7 @@
 name: Import or update 15 org repos into monorepo
 
 on:
-  workflow_dispatch: {}   # Actions 탭에서 수동 실행
+  workflow_dispatch: {}   # Actions 탭에서 버튼으로 실행
 
 permissions:
   contents: write
@@ -9,17 +9,40 @@ permissions:
 jobs:
   import:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout monorepo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install git-subtree
+      # Ubuntu 24.04에서 apt 패키지 git-subtree가 없을 수 있으니 보강
+      - name: Ensure git-subtree is available
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y git-subtree
+          set -euxo pipefail
+          git --version || true
+
+          if git subtree -h >/dev/null 2>&1; then
+            echo "git-subtree already available."
+            exit 0
+          fi
+
+          # 내장 위치에 있을 때는 심볼릭 링크로 노출
+          if [ -x /usr/lib/git-core/git-subtree ]; then
+            sudo ln -sf /usr/lib/git-core/git-subtree /usr/local/bin/git-subtree
+          fi
+
+          if git subtree -h >/dev/null 2>&1; then
+            echo "git-subtree found via symlink."
+            exit 0
+          fi
+
+          # 최후 수단: 공식 스크립트 설치
+          echo "Installing git-subtree script..."
+          sudo curl -L https://raw.githubusercontent.com/git/git/v2.45.1/contrib/subtree/git-subtree.sh -o /usr/local/bin/git-subtree
+          sudo chmod +x /usr/local/bin/git-subtree
+          git subtree -h >/dev/null
+          echo "git-subtree installed."
 
       - name: Configure git identity
         run: |
@@ -30,13 +53,13 @@ jobs:
         env:
           TOKEN: ${{ secrets.PERSONAL_GH_PAT }}
           ORG: Platooning-ANTREES-with-LIG-Nex1
-          PREFIX_ROOT: Platooning_System
+          PREFIX_ROOT: Platooning_System    # 폴더 루트명(원하면 src/packages 등으로 변경)
           DEFAULT_BRANCH: main
         shell: bash
         run: |
           set -euo pipefail
 
-          # ====== 레포 이름 목록 ======
+          # ====== 15개 레포 이름 ======
           REPOS=(
             "Leader-CAR"
             "Platooning_main"
@@ -55,32 +78,53 @@ jobs:
             "RaspberryPi-Docker-Install"
           )
 
-          # 기본 브랜치가 main이 아닌 레포가 있으면 여기에서 지정 (예: BRANCH["MQTT"]="master")
+          # 기본 브랜치가 main이 아닌 레포가 있으면 여기에 오버라이드(예: BRANCH["MQTT"]="master")
           declare -A BRANCH
-          # BRANCH["SomeRepo"]="develop"
+          # BRANCH["MQTT"]="master"
+
+          # 기본 브랜치를 자동 감지(원격 HEAD)하는 함수
+          detect_branch () {
+            local url="$1"
+            # 인증 포함 URL로 HEAD 심볼릭 참조 확인
+            git ls-remote --symref "${url}" HEAD 2>/dev/null \
+              | awk '/^ref:/ {print $2}' | sed 's@refs/heads/@@'
+          }
 
           import_or_update () {
             local NAME="$1"
-            local BR="${BRANCH[$NAME]:-$DEFAULT_BRANCH}"
             local PREFIX="${PREFIX_ROOT}/${NAME}"
             local REM="import-${NAME}"
-
-            # 토큰 포함 HTTPS URL (비공개 레포도 OK)
-            local URL="https://x-access-token:${TOKEN}@github.com/${ORG}/${NAME}.git"
+            local AUTH_URL="https://x-access-token:${TOKEN}@github.com/${ORG}/${NAME}.git"
 
             echo ""
-            echo "=== ${NAME} (${BR}) -> ${PREFIX}"
+            echo "=== ${NAME} ==="
 
             git remote remove "${REM}" 2>/dev/null || true
-            git remote add    "${REM}" "${URL}"
-            git fetch "${REM}" --tags
+            git remote add    "${REM}" "${AUTH_URL}"
+
+            # fetch 재시도(네트워크 일시 오류 대비)
+            for i in 1 2 3; do
+              git fetch "${REM}" --tags && break || { echo "fetch failed ($i)"; sleep 3; }
+            done
+
+            # 브랜치 결정: 수동 오버라이드 > 자동 감지 > DEFAULT_BRANCH
+            local BR="${BRANCH[$NAME]:-}"
+            if [ -z "$BR" ]; then
+              BR="$(detect_branch "${AUTH_URL}")"
+              [ -z "$BR" ] && BR="${DEFAULT_BRANCH}"
+            fi
+            echo " -> branch: ${BR}"
+            echo " -> prefix: ${PREFIX}"
 
             if [ -d "${PREFIX}" ]; then
-              echo " -> exists: pulling latest"
-              git subtree pull --prefix="${PREFIX}" "${REM}" "${BR}" -m "Update ${NAME}"
+              echo " -> exists: subtree pull"
+              git subtree pull --prefix="${PREFIX}" "${REM}" "${BR}" -m "Update ${NAME}" || {
+                echo "pull failed, trying merge -s subtree (one-off recovery)"
+                git merge -s subtree "${REM}/${BR}" -m "Merge ${NAME} (subtree strategy)"
+              }
             else
-              echo " -> not found: importing"
-              git subtree add  --prefix="${PREFIX}" "${REM}" "${BR}" -m "Import ${NAME} into ${PREFIX}"
+              echo " -> not found: subtree add"
+              git subtree add --prefix="${PREFIX}" "${REM}" "${BR}" -m "Import ${NAME} into ${PREFIX}"
             fi
           }
 
@@ -88,6 +132,5 @@ jobs:
             import_or_update "$repo"
           done
 
-          echo ""
-          echo "==> push"
-          git push origin HEAD:main
+      - name: Push changes
+        run: git push origin HEAD:main
