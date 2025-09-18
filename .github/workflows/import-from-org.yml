@@ -1,7 +1,7 @@
 name: Import or update 15 org repos into monorepo
 
 on:
-  workflow_dispatch: {}   # Actions 탭에서 버튼으로 실행
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행
 
 permissions:
   contents: write
@@ -13,36 +13,19 @@ jobs:
       - name: Checkout monorepo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # subtree는 전체 히스토리 필요
 
-      # Ubuntu 24.04에서 apt 패키지 git-subtree가 없을 수 있으니 보강
+      # Ubuntu 24.04에서 git-subtree는 core에 포함되어 있으므로 링크만 잡아주고,
+      # 헬프 호출의 비표준 종료코드는 무시한다.
       - name: Ensure git-subtree is available
         shell: bash
         run: |
           set -euxo pipefail
-          git --version || true
-
-          if git subtree -h >/dev/null 2>&1; then
-            echo "git-subtree already available."
-            exit 0
-          fi
-
-          # 내장 위치에 있을 때는 심볼릭 링크로 노출
+          git --version
           if [ -x /usr/lib/git-core/git-subtree ]; then
             sudo ln -sf /usr/lib/git-core/git-subtree /usr/local/bin/git-subtree
           fi
-
-          if git subtree -h >/dev/null 2>&1; then
-            echo "git-subtree found via symlink."
-            exit 0
-          fi
-
-          # 최후 수단: 공식 스크립트 설치
-          echo "Installing git-subtree script..."
-          sudo curl -L https://raw.githubusercontent.com/git/git/v2.45.1/contrib/subtree/git-subtree.sh -o /usr/local/bin/git-subtree
-          sudo chmod +x /usr/local/bin/git-subtree
-          git subtree -h >/dev/null
-          echo "git-subtree installed."
+          git subtree -h || true
 
       - name: Configure git identity
         run: |
@@ -53,7 +36,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.PERSONAL_GH_PAT }}
           ORG: Platooning-ANTREES-with-LIG-Nex1
-          PREFIX_ROOT: Platooning_System    # 폴더 루트명(원하면 src/packages 등으로 변경)
+          PREFIX_ROOT: Platooning_System    # 원하면 src/packages 등으로 변경
           DEFAULT_BRANCH: main
         shell: bash
         run: |
@@ -78,15 +61,14 @@ jobs:
             "RaspberryPi-Docker-Install"
           )
 
-          # 기본 브랜치가 main이 아닌 레포가 있으면 여기에 오버라이드(예: BRANCH["MQTT"]="master")
+          # 기본 브랜치 오버라이드가 필요하면 여기 지정 (예: BRANCH["MQTT"]="master")
           declare -A BRANCH
           # BRANCH["MQTT"]="master"
 
-          # 기본 브랜치를 자동 감지(원격 HEAD)하는 함수
+          # 원격 HEAD로 기본 브랜치 자동 감지
           detect_branch () {
             local url="$1"
-            # 인증 포함 URL로 HEAD 심볼릭 참조 확인
-            git ls-remote --symref "${url}" HEAD 2>/dev/null \
+            git ls-remote --symref "$url" HEAD 2>/dev/null \
               | awk '/^ref:/ {print $2}' | sed 's@refs/heads/@@'
           }
 
@@ -102,7 +84,7 @@ jobs:
             git remote remove "${REM}" 2>/dev/null || true
             git remote add    "${REM}" "${AUTH_URL}"
 
-            # fetch 재시도(네트워크 일시 오류 대비)
+            # fetch 재시도(네트워크/일시 오류 대비)
             for i in 1 2 3; do
               git fetch "${REM}" --tags && break || { echo "fetch failed ($i)"; sleep 3; }
             done
@@ -119,8 +101,10 @@ jobs:
             if [ -d "${PREFIX}" ]; then
               echo " -> exists: subtree pull"
               git subtree pull --prefix="${PREFIX}" "${REM}" "${BR}" -m "Update ${NAME}" || {
-                echo "pull failed, trying merge -s subtree (one-off recovery)"
-                git merge -s subtree "${REM}/${BR}" -m "Merge ${NAME} (subtree strategy)"
+                echo "pull failed, trying merge -s subtree (recovery)"
+                git merge -s subtree "${REM}/${BR}" -m "Merge ${NAME} (subtree strategy)" || {
+                  echo "merge recovery failed for ${NAME}; skipping"
+                }
               }
             else
               echo " -> not found: subtree add"
