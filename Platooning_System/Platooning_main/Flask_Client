@@ -1,0 +1,31 @@
+import requests
+import os
+
+# 리드카 IP와 맵 경로
+LEADCAR_IP = '192.168.0.45'  # 실제 리드카 IP로 변경
+MAP_FILES = ['3F_lab.pgm', '3F_lab.yaml']
+SAVE_DIR = '/home/pi/Yahboom_project/Raspbot/raspbot/Downloaded_Maps'
+
+
+# 디렉토리 생성
+os.makedirs(SAVE_DIR, exist_ok=True)
+
+def download_map_files():
+    base_url = f"http://{LEADCAR_IP}:5001/map/"
+    for fname in MAP_FILES:
+        url = base_url + fname
+        try:
+            r = requests.get(url)
+            if r.status_code == 200:
+                with open(os.path.join(SAVE_DIR, fname), 'wb') as f:
+                    f.write(r.content)
+                print(f"[팔로우카] {fname} 다운로드 완료")
+            else:
+                print(f"⚠️ {fname} 다운로드 실패: 상태코드 {r.status_code}")
+        except Exception as e:
+            print(f"❌ 요청 실패: {e}")
+
+if __name__ == '__main__':
+    print("[팔로우카] 맵 다운로드 시작...")
+    download_map_files()
+    print("[팔로우카] 모든 맵 파일 다운로드 완료.")
