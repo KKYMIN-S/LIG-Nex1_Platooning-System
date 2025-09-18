@@ -1,0 +1,60 @@
+  name: Import all repos from org into monorepo
+on:
+  workflow_dispatch: {}   # Actions 탭에서 수동 실행
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout monorepo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 전체 히스토리 필요
+
+      - name: Install GitHub CLI
+        uses: cli/gh-action@v2
+
+      - name: Auth gh
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_GH_PAT }}
+        run: gh auth status || gh auth login --with-token <<< "${GH_TOKEN}"
+
+      - name: Configure git
+        run: |
+          git config user.name  "monorepo-bot"
+          git config user.email "monorepo-bot@users.noreply.github.com"
+
+      - name: Import all repos from org as subtrees
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_GH_PAT }}
+          ORG: Platooning-ANTREES-with-LIG-Nex1
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # ORG 내 내가 접근 가능한 모든 레포의 이름/기본브랜치/HTTPS URL 수집
+          # --paginate로 페이지 전부 순회
+          gh api -H "Accept: application/vnd.github+json" \
+            "/orgs/${ORG}/repos?type=all&per_page=100" --paginate \
+            --jq '.[] | [.name, .default_branch, .clone_url] | @tsv' \
+          | while IFS=$'\t' read -r NAME BRANCH URL; do
+              PREFIX="src/${NAME}"
+              echo "==> Import ${NAME} (${BRANCH}) -> ${PREFIX}"
+
+              # 이미 가져온 적 있으면 스킵 (원하면 pull 로직으로 바꿀 수 있음)
+              if [ -d "${PREFIX}" ]; then
+                echo "    Skip: ${PREFIX} already exists"
+                continue
+              fi
+
+              # 토큰 포함 원격으로 fetch 후 subtree add (히스토리 보존)
+              REM="import-${NAME}"
+              git remote remove "${REM}" 2>/dev/null || true
+              SAFE_URL="${URL/https:\/\//https:\/\/x-access-token:${GH_TOKEN}@}"
+              git remote add "${REM}" "${SAFE_URL}"
+              git fetch "${REM}" --tags
+              git subtree add --prefix="${PREFIX}" "${REM}" "${BRANCH}" \
+                -m "Import ${NAME} into ${PREFIX}"
+            done
+
+          git push origin HEAD:main
